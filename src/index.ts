@@ -1,5 +1,7 @@
+import { SupabaseClientOptions } from '@supabase/supabase-js';
+import { SupabaseAPI } from './api';
+import { getPath } from './helper';
 import { createClient } from '@supabase/supabase-js';
-
 /**
  * The bindings assigned to the Worker.
  * @see {@link https://developers.cloudflare.com/workers/runtime-apis/kv/#referencing-kv-from-workers}
@@ -23,16 +25,6 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     return handleFetch({ request, env, ctx });
   },
-  /**
-   * The scheduled handler is called whenever a scheduled cron event is triggered.
-   * @see {@link https://developers.cloudflare.com/workers/runtime-apis/scheduled-event/#syntax-module-worker}
-   * @param controller The scheduled event information.
-   * @param env The bindings assigned to the Worker.
-   * @param ctx The context of the Worker.
-   */
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    return handleScheduled({ controller, env, ctx });
-  },
 };
 
 /**
@@ -45,20 +37,14 @@ async function handleFetch({ request, env, ctx }: FetchPayload): Promise<Respons
     supabaseUrl: env.SB_URL,
     supabaseKey: env.SB_KEY,
   };
-  // Provide a custom `fetch` implementation as an option
-  const supabase = createClient(config.supabaseUrl, config.supabaseKey);
+
   const body: AuthBody = await request.json();
+
+  const supabase = createClient(config.supabaseUrl, config.supabaseKey);
   const { user, session, error } = await supabase.auth.signUp({
     email: body.email,
     password: body.password,
   });
-  return new Response(user?.id || error?.message);
-}
 
-/**
- * Handle incoming scheduled cron events.
- * @param {ScheduledPayload} payload The payload containing the controller, env and ctx.
- */
-async function handleScheduled({ controller, env, ctx }: ScheduledPayload): Promise<void> {
-  return;
+  return new Response(JSON.stringify({ user, session, error }));
 }
